@@ -1,5 +1,5 @@
-assign1: main.cpp
-	g++ -Wall -Werror -std=c++14 -O -o assign1 main.cpp
+task1: task1.cpp Utils.h Utils.cpp
+	g++ -Wall -Werror -std=c++14 -O -o task1 task1.cpp Utils.cpp
 
 clean :
 	rm assign1

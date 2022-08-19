@@ -26,4 +26,5 @@ cat "$DIRTY_FILE" \
     | sed 's/[^A-Za-z]//g' \
     | grep -oP '^.{3,15}$' \
     | sort \
-    | uniq > "$CLEAN_FILE"
+    | uniq \
+    | shuf > "$CLEAN_FILE"
