@@ -55,3 +55,6 @@ dkms.conf
 
 # Word lists
 /wlist_all/*.txt
+
+# .tags files
+.tags

@@ -1,0 +1,4 @@
+# Clang-Format configuration file
+
+BasedOnStyle: Google
+IndentWidth: 4
