@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <string>
 #include <vector>
@@ -104,11 +105,16 @@ void reduce2(std::string outPath) {
     // 1. Open all lists from map2()
     // 2. Sort each list
     // Create list of word lists
-    std::vector<std::vector<std::string>> wordLists;
+    std::vector<std::deque<std::string>> wordLists;
 
     // Load each of the word lists
     for (int i = 3; i < 15; i++) {
-        std::vector<std::string> curList = readWordList(getListFilename(i));
+        // Use deque for better performance since we need to repeatedly
+        // remove the first element from each word list later.
+        std::deque<std::string> curList;
+        std::vector<std::string> curListVec = readWordList(getListFilename(i));
+        std::move(begin(curListVec), end(curListVec), back_inserter(curList));
+
         std::sort(curList.begin(), curList.end());
         wordLists.push_back(curList);
     }
@@ -120,8 +126,8 @@ void reduce2(std::string outPath) {
 
     // Define comparison function for sorting word lists based on first word
     // in each.
-    auto cmpFirstWords = [](const std::vector<std::string> &a,
-                            const std::vector<std::string> &b) {
+    auto cmpFirstWords = [](const std::deque<std::string> &a,
+                            const std::deque<std::string> &b) {
         // Handle case where either or both of the lists are empty. We ensure
         // empty lists are sorted last.
         if (a.size() == 0) {
@@ -152,7 +158,7 @@ void reduce2(std::string outPath) {
 
         // Write first ordered word and remove it from the corresponding list
         outStream << wordLists[0][0] << "\n";
-        wordLists[0].erase(wordLists[0].begin());
+        wordLists[0].pop_front();
     }
 }
 
