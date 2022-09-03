@@ -12,7 +12,7 @@
 // Return a filename for a word list containing words of the specified length
 std::string getListFilename(int len) {
     std::stringstream path("");
-    path << "words" << len << ".txt";
+    path << ".words" << len << ".txt";
     return path.str();
 }
 
