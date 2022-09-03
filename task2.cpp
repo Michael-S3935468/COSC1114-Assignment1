@@ -58,18 +58,8 @@ int main(int argc, char **argv) {
 // to perform these tasks.
 // Returns a vector containing the child process PIDs.
 std::vector<pid_t> map2(std::vector<std::string> list) {
-    // Create map to store lists for each length
-    std::map<int, std::vector<std::string>> wordLists;
-
-    // Initialise map with vector for each word length
-    for (int i = 3; i < 15; i++) {
-        wordLists[i] = std::vector<std::string>();
-    }
-
-    // Separate by length and store in map
-    for (std::string str : list) {
-        wordLists[str.length()].push_back(str);
-    }
+    // Separate words by length and store in map
+    auto wordLists = splitWordsByLength(list);
 
     // Use fork() to sort each list on the third letter only and save to file
     std::vector<pid_t> childPIDs;
@@ -86,7 +76,7 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
         }
     }
 
-    // Define comparison function for sorting on third letter
+    // Define comparison function for sorting on third letter only
     auto cmpLetter3 = [](const std::string &a, const std::string &b) {
         return a[2] < b[2];
     };
@@ -103,7 +93,6 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
 
 void reduce2(std::string outPath) {
     // 1. Open all lists from map2()
-    // 2. Sort each list
     // Create list of word lists
     std::vector<std::deque<std::string>> wordLists;
 
@@ -119,7 +108,7 @@ void reduce2(std::string outPath) {
         wordLists.push_back(curList);
     }
 
-    // 3. While words remain in any list:
+    // 2. While words remain in any list:
     //    - write the first sort ordered word out of the first words of each
     //       list
     //    - advance one position in the list from which the word was written

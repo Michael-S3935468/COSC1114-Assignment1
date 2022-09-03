@@ -143,4 +143,24 @@ std::vector<std::string> Task1Filter(std::vector<std::string> lines) {
     return dedup;
 }
 
+// Split a vector of words by length and return a map of length to a vector of
+// words of that length.
+// Assumes word lengths are between 3 and 15 characters inclusive.
+std::map<int, std::vector<std::string>> splitWordsByLength(
+    std::vector<std::string> lines) {
+    std::map<int, std::vector<std::string>> wordLists;
+
+    // Initialise map with vector for each word length
+    for (int i = 3; i < 15; i++) {
+        wordLists[i] = std::vector<std::string>();
+    }
+
+    // Separate by length and store in map
+    for (std::string str : lines) {
+        wordLists[str.length()].push_back(str);
+    }
+
+    return wordLists;
+}
+
 /* vim: set ts=4 sw=4 tw=79 fdm=indent ff=unix fenc=utf-8 et :*/

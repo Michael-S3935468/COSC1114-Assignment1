@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <deque>
 #include <fstream>
+#include <map>
 #include <random>
 #include <sstream>
 #include <string>
@@ -45,5 +46,11 @@ void writeWordList(std::string path, std::vector<std::string> lines);
 // * Randomly shuffle remaining words
 // Returns the result.
 std::vector<std::string> Task1Filter(std::vector<std::string> lines);
+
+// Split a vector of words by length and return a map of length to a vector of
+// words of that length.
+// Assumes word lengths are between 3 and 15 characters inclusive.
+std::map<int, std::vector<std::string>> splitWordsByLength(
+    std::vector<std::string> lines);
 
 #endif /* __UTILS_H__ */

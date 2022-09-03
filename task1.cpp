@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     // Check argument count
     if (argc != 3) {
         printf("Error: Expected 2 arguments, got %i\n", argc - 1);
-        printf("\nUsage: assign1 {input_path} {output_path}\n");
+        printf("\nUsage: task1 {input_path} {output_path}\n");
         return 1;
     }
 
