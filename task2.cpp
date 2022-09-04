@@ -75,7 +75,7 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
     std::vector<std::ofstream> tmpFiles;
 
     for (int i = 0; i < 13; i++) {
-        tmpFiles.push_back(std::ofstream(getListFilename(i + 3, "tmp")));
+        tmpFiles.push_back(std::ofstream(getListFilename(i + 3, "tmp.task2")));
         assert(tmpFiles[i].good());
     }
 
@@ -117,7 +117,7 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
         printf("Child sortLen=%i reading word list\n", sortLen);
 
         // Open corresponding file
-        auto targetList = readWordList(getListFilename(sortLen, "tmp"));
+        auto targetList = readWordList(getListFilename(sortLen, "tmp.task2"));
 
         // Define comparison function for sorting on third letter only
         auto cmpLetter3 = [](const std::string &a, const std::string &b) {
@@ -132,7 +132,7 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
 
         // Write result to file
         printf("Child sortLen=%i writing word list\n", sortLen);
-        writeWordList(getListFilename(sortLen), targetList);
+        writeWordList(getListFilename(sortLen, "task2"), targetList);
 
         printf("Child sortLen=%i finished writing word list\n", sortLen);
     }
@@ -153,7 +153,8 @@ void reduce2(std::string outPath) {
         // Use deque for better performance since we need to repeatedly
         // remove the first element from each word list later.
         std::deque<std::string> curList;
-        std::vector<std::string> curListVec = readWordList(getListFilename(i));
+        std::vector<std::string> curListVec =
+            readWordList(getListFilename(i, "task2"));
         std::move(begin(curListVec), end(curListVec), back_inserter(curList));
 
         wordLists.push_back(curList);

@@ -27,11 +27,10 @@ struct MapThreadArgs {
 };
 
 // Function declarations
-void map3(unsigned int count, pthread_t threads[13],
-          MapThreadArgs threadArgs[13]);
+void map3(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs);
 void* map3Thread(void* argPtr);
-void reduce3(std::string outPath, pthread_t threads[13],
-             MapThreadArgs threadArgs[13]);
+void reduce3(std::string outPath, pthread_t* threads,
+             MapThreadArgs* threadArgs);
 
 int main(int argc, char** argv) {
     // Check argument count
@@ -59,8 +58,7 @@ int main(int argc, char** argv) {
     reduce3(argv[2], threads, threadArgs);
 }
 
-void map3(unsigned int count, pthread_t threads[13],
-          MapThreadArgs threadArgs[13]) {
+void map3(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs) {
     printf("map3() count=%u\n", count);
 
     // Create index arrays, threads and named pipes
@@ -92,7 +90,7 @@ void map3(unsigned int count, pthread_t threads[13],
         }
 
         // Create named pipe for writing.
-        assert(mkfifo(getListFilename(args->wordLength).c_str(),
+        assert(mkfifo(getListFilename(args->wordLength, "task3").c_str(),
                       S_IRWXU /* Read/write/execute */) == 0);
 
         // Create thread
@@ -127,22 +125,22 @@ void* map3Thread(void* argPtr) {
 
     // Open named pipe for writing.
     // This will block until the corresponding open() call in reduce3().
-    int outFile =
-        open(getListFilename(args->wordLength).c_str(), O_WRONLY /* Write */);
+    int outFile = open(getListFilename(args->wordLength, "task3").c_str(),
+                       O_WRONLY /* Write */);
 
     printf("Thread len=%u opened pipe\n", args->wordLength);
 
     // Write each word to pipe
     for (unsigned int i = 0; i < args->wordCount; i++) {
-        // Write word (and null terminator)
-        int nWritten = write(outFile, Global[args->indices[i]].c_str(),
-                             args->wordLength + 1);
+        // Write word
+        int nWritten =
+            write(outFile, Global[args->indices[i]].c_str(), args->wordLength);
 
         // Make sure we actually wrote all data
         // FIXME: block instead?
-        if (nWritten != (int)(args->wordLength + 1)) {
+        if (nWritten != (int)args->wordLength) {
             printf("Thread len=%u incomplete write (%i < %u) i=%u\n",
-                   args->wordLength, nWritten, args->wordLength + 1, i);
+                   args->wordLength, nWritten, args->wordLength, i);
             assert(false);
         }
     }
@@ -157,8 +155,63 @@ void* map3Thread(void* argPtr) {
     return 0;
 }
 
-void reduce3(std::string outPath, pthread_t threads[13],
-             MapThreadArgs threadArgs[13]) {
+// Read the next word from pipe.
+// Assumes the largest word length is 15 characters.
+std::string readNextWord(char* buf, int pipe, int wordLength) {
+    int curLen = 0;
+
+    // Read one character at a time until we reach NULL
+    // NOTE: This may block if a word is not yet available
+    while (curLen != wordLength) {
+        ssize_t retVal = read(pipe, buf + curLen, wordLength - curLen);
+
+        if (retVal < 0) {
+            // Read error
+            printf("Read error reading pipe for len=%i\n", wordLength);
+        }
+
+        curLen += retVal;
+    }
+
+    // Null terminate
+    buf[curLen] = '\x00';
+
+    // Convert to std::string implicitly
+    return buf;
+}
+
+// Represents a word read from a pipe.
+struct Reduce3WordList {
+    // Index of the pipe for this word list.
+    int index;
+
+    // Current number of words, including nextWord.
+    int wordCount;
+
+    // Word at the front of the word list.
+    char nextWord[16];
+};
+
+int reduce3Compare(const void* a, const void* b) {
+    // Read structs
+    Reduce3WordList* aList = (Reduce3WordList*)a;
+    Reduce3WordList* bList = (Reduce3WordList*)b;
+
+    // Handle case where word lists are empty
+    if (aList->wordCount == 0) {
+        // a empty or both empty. b should go first.
+        return 1;
+    } else if (bList->wordCount == 0) {
+        // b empty only, a should go firstt.
+        return -1;
+    }
+
+    // Compare third letter from each word
+    return (int)aList->nextWord[2] - (int)bList->nextWord[2];
+}
+
+void reduce3(std::string outPath, pthread_t* threads,
+             MapThreadArgs* threadArgs) {
     printf("reduce3()\n");
 
     // Open named pipes for reading. Note each map3() thread will block until
@@ -167,16 +220,43 @@ void reduce3(std::string outPath, pthread_t threads[13],
 
     for (int i = 0; i < 13; i++) {
         printf("Opening pipe for reading %i\n", i);
-        pipes[i] = open(getListFilename(i + 3).c_str(), O_RDONLY /* Read */);
+        pipes[i] =
+            open(getListFilename(i + 3, "task3").c_str(), O_RDONLY /* Read */);
     }
 
     // Open outut file stream
     std::ofstream outStream(outPath);
     assert(outStream.good());
 
+    // Initialise word counts and read first word from each list
+    Reduce3WordList curWords[13];
+
+    for (int i = 0; i < 13; i++) {
+        // wordCount is not modified in the map3 threads, so we can safely read
+        // it here.
+        curWords[i].wordCount = threadArgs[i].wordCount;
+        printf("curWords[%i].wordCount = %i\n", i, threadArgs[i].wordCount);
+        curWords[i].index = i;
+        readNextWord(&curWords[i].nextWord[0], pipes[i], i + 3);
+    }
+
     // Perform reduction step
-    // std::string curWords[13];
-    // int indices[13];
+    qsort(curWords, 13, sizeof(Reduce3WordList), reduce3Compare);
+
+    while (curWords[0].wordCount > 0) {
+        // Write word
+        outStream << curWords[0].nextWord;
+        outStream << "\n";
+
+        // Update word count and read next word if one exists
+        if (--curWords[0].wordCount > 0) {
+            readNextWord(&curWords[0].nextWord[0], pipes[curWords[0].index],
+                         curWords[0].index + 3);
+        }
+
+        // Determine next ordered word
+        qsort(curWords, 13, sizeof(Reduce3WordList), reduce3Compare);
+    }
 
     // Wait for map3 threads to finish
     printf("Waiting for map3 threads...\n");
