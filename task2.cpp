@@ -5,7 +5,7 @@
   Description:           TODO
   Author:                Michael De Pasquale
   Creation Date:         2022-08-19
-  Modification Date:     2022-09-03
+  Modification Date:     2022-09-04
 
 */
 
@@ -45,12 +45,22 @@ int main(int argc, char **argv) {
     std::vector<pid_t> childPIDs = map2(wordList);
 
     // Wait for child processes to terminate
-    for (pid_t child : childPIDs) {
-        waitpid(child, NULL, 0);
+    if (childPIDs.size() > 0) {
+        // We are the parent
+        printf("Waiting for child processes...\n");
+
+        for (pid_t child : childPIDs) {
+            printf("Waiting for child pid=%i\n", child);
+            waitpid(child, NULL, 0);
+        }
+
+        // Reduce
+        reduce2(argv[2]);
+    } else {
+        printf("Child exiting\n");
     }
 
-    // Reduce
-    reduce2(argv[2]);
+    return 0;
 }
 
 // Separates word lists by word length, sorts each on the third letter and
@@ -58,40 +68,82 @@ int main(int argc, char **argv) {
 // to perform these tasks.
 // Returns a vector containing the child process PIDs.
 std::vector<pid_t> map2(std::vector<std::string> list) {
-    // Separate words by length and store in map
-    auto wordLists = splitWordsByLength(list);
+    printf("map2()\n");
+
+    // Open one file for each word length
+    printf("opening temp files\n");
+    std::vector<std::ofstream> tmpFiles;
+
+    for (int i = 0; i < 13; i++) {
+        tmpFiles.push_back(std::ofstream(getListFilename(i + 3, "tmp")));
+        assert(tmpFiles[i].good());
+    }
+
+    // Write words of each length to the corresponding file
+    printf("Separating words by length\n");
+
+    for (std::string word : list) {
+        tmpFiles[word.length() - 3] << word << "\n";
+    }
+
+    // Close files
+    printf("Closing temp files\n");
+
+    for (int i = 0; i < 13; i++) {
+        tmpFiles[i].close();
+    }
 
     // Use fork() to sort each list on the third letter only and save to file
+    printf("Forking\n");
     std::vector<pid_t> childPIDs;
     int sortLen = 3;
 
-    for (; sortLen < 15; sortLen++) {
-        int pid = fork();
+    for (; sortLen < 16; sortLen++) {
+        pid_t pid = fork();
 
         // Break if child process, otherwise store child PID
         if (pid == 0) {
+            // Clear child PID list
+            childPIDs.clear();
+
             break;
         } else {
             childPIDs.push_back(pid);
         }
     }
 
-    // Define comparison function for sorting on third letter only
-    auto cmpLetter3 = [](const std::string &a, const std::string &b) {
-        return a[2] < b[2];
-    };
+    if (childPIDs.size() == 0) {
+        // Child process
+        printf("Child sortLen=%i reading word list\n", sortLen);
 
-    // Sort words of specified length on third letter (?)
-    std::sort(wordLists[sortLen].begin(), wordLists[sortLen].end(), cmpLetter3);
+        // Open corresponding file
+        auto targetList = readWordList(getListFilename(sortLen, "tmp"));
 
-    // Write result to file
-    writeWordList(getListFilename(sortLen), wordLists[sortLen]);
+        // Define comparison function for sorting on third letter only
+        auto cmpLetter3 = [](const std::string &a, const std::string &b) {
+            return a[2] < b[2];
+        };
+
+        // Child process
+        printf("Child sortLen=%i sorting words\n", sortLen);
+
+        // Sort words of specified length on third letter
+        std::sort(targetList.begin(), targetList.end(), cmpLetter3);
+
+        // Write result to file
+        printf("Child sortLen=%i writing word list\n", sortLen);
+        writeWordList(getListFilename(sortLen), targetList);
+
+        printf("Child sortLen=%i finished writing word list\n", sortLen);
+    }
 
     // Return child PIDs so we can wait for them to terminate
     return childPIDs;
 }
 
 void reduce2(std::string outPath) {
+    printf("reduce2()\n");
+
     // 1. Open all lists from map2()
     // Create list of word lists
     std::vector<std::deque<std::string>> wordLists;
@@ -104,7 +156,6 @@ void reduce2(std::string outPath) {
         std::vector<std::string> curListVec = readWordList(getListFilename(i));
         std::move(begin(curListVec), end(curListVec), back_inserter(curList));
 
-        std::sort(curList.begin(), curList.end());
         wordLists.push_back(curList);
     }
 
@@ -128,7 +179,8 @@ void reduce2(std::string outPath) {
         }
 
         // Both lists non-empty
-        return a[0] < b[0];
+        // Sort on the third letter of each word
+        return a[0][2] < b[0][2];
     };
 
     // Open output file

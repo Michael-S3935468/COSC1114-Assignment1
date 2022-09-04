@@ -24,6 +24,9 @@
 // Return a filename for a word list containing words of the specified length
 std::string getListFilename(int len);
 
+// Same as getListFilename, but adds a prefix.
+std::string getListFilename(int len, std::string prefix);
+
 // Return true if c is a letter ([A-Za-z]), false otherwise
 bool isLetter(char c);
 

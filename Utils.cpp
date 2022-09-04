@@ -10,8 +10,17 @@
 #include "Utils.h"
 
 // Return a filename for a word list containing words of the specified length
-std::string getListFilename(int len) {
+std::string getListFilename(int len) { return getListFilename(len, ""); }
+
+// Return a filename for a word list containing words of the specified length.
+// Also adds a prefix if prefix is a non-empty string.
+std::string getListFilename(int len, std::string prefix) {
     std::stringstream path("");
+
+    if (prefix != "") {
+        path << "." << prefix;
+    }
+
     path << ".words" << len << ".txt";
     return path.str();
 }
