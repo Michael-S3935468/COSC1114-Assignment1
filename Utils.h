@@ -30,6 +30,9 @@ std::string getListFilename(int len, std::string prefix);
 // Return true if c is a letter ([A-Za-z]), false otherwise
 bool isLetter(char c);
 
+// Return true if any character in word does not satisfy isLetter().
+bool containsNonLetter(std::string word);
+
 // Return the input string with all non-letter characters removed.
 std::string stripNonLetters(std::string str);
 

@@ -1,5 +1,5 @@
 /*
-  task3.cpp
+  task4.cpp
   =========
 
   Description:           Task 3 solution
@@ -19,7 +19,7 @@
 
 static std::vector<std::string> Global;
 
-// Arguments for map3 threads
+// Arguments for map4 threads
 struct MapThreadArgs {
     unsigned int wordLength;
     unsigned int wordCount;
@@ -27,16 +27,16 @@ struct MapThreadArgs {
 };
 
 // Function declarations
-void map3(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs);
-void* map3Thread(void* argPtr);
-void reduce3(std::string outPath, pthread_t* threads,
+void map4(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs);
+void* map4Thread(void* argPtr);
+void reduce4(std::string outPath, pthread_t* threads,
              MapThreadArgs* threadArgs);
 
 int main(int argc, char** argv) {
     // Check argument count
     if (argc != 3) {
         printf("Error: Expected 2 arguments, got %i\n", argc - 1);
-        printf("\nUsage: task3 {input_path} {output_path}\n");
+        printf("\nUsage: task4 {input_path} {output_path}\n");
         return 1;
     }
 
@@ -52,16 +52,17 @@ int main(int argc, char** argv) {
     // Create threads for each word count
     pthread_t threads[13];
     MapThreadArgs threadArgs[13];
-    map3(lines.size(), threads, threadArgs);
+    map4(lines.size(), threads, threadArgs);
 
     // Perform reduce/merge step
-    reduce3(argv[2], threads, threadArgs);
+    reduce4(argv[2], threads, threadArgs);
 }
 
-void map3(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs) {
-    printf("map3() count=%u\n", count);
+void map4(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs) {
+    printf("map4() count=%u\n", count);
 
-    // Create index arrays, threads and named pipes
+    // Create index arrays and named pipes
+    // Count words
     for (unsigned int i = 3; i < 16; i++) {
         MapThreadArgs* args = &threadArgs[i - 3];
         args->wordLength = i;
@@ -90,16 +91,59 @@ void map3(unsigned int count, pthread_t* threads, MapThreadArgs* threadArgs) {
         }
 
         // Create named pipe for writing.
-        assert(mkfifo(getListFilename(args->wordLength, "task3").c_str(),
+        assert(mkfifo(getListFilename(args->wordLength, "task4").c_str(),
                       S_IRWXU /* Read/write/execute */) == 0);
+    }
 
-        // Create thread
-        printf("Creating thread %i\n", i - 3);
-        pthread_create(&threads[i - 3], NULL, map3Thread, args);
+    // Determine thread priorities
+    // Sort by word count and then prioritise in order of word count
+    std::vector<std::tuple<int, int>> idxWordCounts;  // (index, wordCount)
+    int priorities[13];
+
+    for (int i = 0; i < 13; i++) {
+        idxWordCounts.push_back(
+            std::tuple<int, int>(i, threadArgs[i].wordCount));
+    }
+
+    auto cmpWordCounts = [](const std::tuple<int, int> a,
+                            const std::tuple<int, int> b) {
+        // Compare word counts
+        return std::get<1>(a) < std::get<1>(b);
+    };
+    std::sort(idxWordCounts.begin(), idxWordCounts.end(), cmpWordCounts);
+
+    for (unsigned int i = 0; i < idxWordCounts.size(); i++) {
+        int threadNo = std::get<0>(idxWordCounts[i]);
+        priorities[threadNo] = i + 1; /* 1 to 13 */
+        printf("Priority for thread %i (wordLength=%i) = %u\n", threadNo,
+               threadNo + 3, i);
+    }
+
+    // Create threads and set priorities
+    for (unsigned int i = 0; i < 13; i++) {
+        printf("Creating thread %i\n", i);
+        pthread_create(&threads[i], NULL, map4Thread, &threadArgs[i]);
+
+        // Task 4 - set scheduling policy
+        sched_param prioParam;
+        prioParam.sched_priority = priorities[i];
+        int schedErrno =
+            pthread_setschedparam(threads[i], SCHED_RR, &prioParam);
+
+        // Check for errors
+        if (schedErrno == EPERM) {
+            printf(
+                "We don't have permission to set thread priority! re-run with "
+                "sudo\n");
+            assert(false);
+        } else if (schedErrno != 0) {
+            printf("pthread_setschedparam failed with error %i", schedErrno);
+            assert(false);
+        }
     }
 }
 
-int map3ThreadCompare(const void* a, const void* b) {
+int map4ThreadCompare(const void* a, const void* b) {
     // Read indices from array
     int aIdx = *(int*)a;
     int bIdx = *(int*)b;
@@ -112,20 +156,20 @@ int map3ThreadCompare(const void* a, const void* b) {
     return (int)aLetter - (int)bLetter;
 }
 
-void* map3Thread(void* argPtr) {
+void* map4Thread(void* argPtr) {
     MapThreadArgs* args = (MapThreadArgs*)argPtr;
 
     printf("Thread len=%u %u words\n", args->wordLength, args->wordCount);
 
     // Sort indices on third letter of each word
     qsort(args->indices, args->wordCount, sizeof(unsigned int),
-          map3ThreadCompare);
+          map4ThreadCompare);
 
     printf("Thread len=%u sort complete\n", args->wordLength);
 
     // Open named pipe for writing.
-    // This will block until the corresponding open() call in reduce3().
-    int outFile = open(getListFilename(args->wordLength, "task3").c_str(),
+    // This will block until the corresponding open() call in reduce4().
+    int outFile = open(getListFilename(args->wordLength, "task4").c_str(),
                        O_WRONLY /* Write */);
 
     printf("Thread len=%u opened pipe\n", args->wordLength);
@@ -181,7 +225,7 @@ std::string readNextWord(char* buf, int pipe, int wordLength) {
 }
 
 // Represents a word read from a pipe.
-struct Reduce3WordList {
+struct reduce4WordList {
     // Index of the pipe for this word list.
     int index;
 
@@ -192,10 +236,10 @@ struct Reduce3WordList {
     char nextWord[16];
 };
 
-int reduce3Compare(const void* a, const void* b) {
+int reduce4Compare(const void* a, const void* b) {
     // Read structs
-    Reduce3WordList* aList = (Reduce3WordList*)a;
-    Reduce3WordList* bList = (Reduce3WordList*)b;
+    reduce4WordList* aList = (reduce4WordList*)a;
+    reduce4WordList* bList = (reduce4WordList*)b;
 
     // Handle case where word lists are empty
     if (aList->wordCount == 0) {
@@ -210,18 +254,18 @@ int reduce3Compare(const void* a, const void* b) {
     return (int)aList->nextWord[2] - (int)bList->nextWord[2];
 }
 
-void reduce3(std::string outPath, pthread_t* threads,
+void reduce4(std::string outPath, pthread_t* threads,
              MapThreadArgs* threadArgs) {
-    printf("reduce3()\n");
+    printf("reduce4()\n");
 
-    // Open named pipes for reading. Note each map3() thread will block until
+    // Open named pipes for reading. Note each map4() thread will block until
     // this point.
     int pipes[13];
 
     for (int i = 0; i < 13; i++) {
         printf("Opening pipe for reading %i\n", i);
         pipes[i] =
-            open(getListFilename(i + 3, "task3").c_str(), O_RDONLY /* Read */);
+            open(getListFilename(i + 3, "task4").c_str(), O_RDONLY /* Read */);
     }
 
     // Open outut file stream
@@ -229,10 +273,10 @@ void reduce3(std::string outPath, pthread_t* threads,
     assert(outStream.good());
 
     // Initialise word counts and read first word from each list
-    Reduce3WordList curWords[13];
+    reduce4WordList curWords[13];
 
     for (int i = 0; i < 13; i++) {
-        // wordCount is not modified in the map3 threads, so we can safely read
+        // wordCount is not modified in the map4 threads, so we can safely read
         // it here.
         curWords[i].wordCount = threadArgs[i].wordCount;
         printf("curWords[%i].wordCount = %i\n", i, threadArgs[i].wordCount);
@@ -241,7 +285,7 @@ void reduce3(std::string outPath, pthread_t* threads,
     }
 
     // Perform reduction step
-    qsort(curWords, 13, sizeof(Reduce3WordList), reduce3Compare);
+    qsort(curWords, 13, sizeof(reduce4WordList), reduce4Compare);
 
     while (curWords[0].wordCount > 0) {
         // Write word
@@ -255,11 +299,11 @@ void reduce3(std::string outPath, pthread_t* threads,
         }
 
         // Determine next ordered word
-        qsort(curWords, 13, sizeof(Reduce3WordList), reduce3Compare);
+        qsort(curWords, 13, sizeof(reduce4WordList), reduce4Compare);
     }
 
-    // Wait for map3 threads to finish
-    printf("Waiting for map3 threads...\n");
+    // Wait for map4 threads to finish
+    printf("Waiting for map4 threads...\n");
 
     for (int i = 0; i < 13; i++) {
         void* retVal;
@@ -267,7 +311,7 @@ void reduce3(std::string outPath, pthread_t* threads,
         assert(retVal == 0);
     }
 
-    printf("map3 threads finished\n");
+    printf("map4 threads finished\n");
 
     // Free memory allocated for indices
     for (int i = 0; i < 13; i++) {
@@ -280,5 +324,5 @@ void reduce3(std::string outPath, pthread_t* threads,
         close(pipes[i]);
     }
 
-    printf("reduce3() finished\n");
+    printf("reduce4() finished\n");
 }

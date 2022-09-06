@@ -22,8 +22,7 @@ CLEAN_FILE="$2"
 # 4. Select words of length 3 to 15 letters (inclusive)
 # 5. Sort and remove duplicates
 cat "$DIRTY_FILE" \
-    | sed 's/[^A-Za-z]//g' \
-    | grep -oP '^.{3,15}$' \
+    | grep -oP '^[A-Za-z]{3,15}$' \
     | sort \
     | uniq \
     | shuf > "$CLEAN_FILE"
