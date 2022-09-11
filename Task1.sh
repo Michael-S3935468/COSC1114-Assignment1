@@ -17,12 +17,14 @@ DIRTY_FILE="$1"
 CLEAN_FILE="$2"
 
 # 1. Read file
-# 2. Shuffle randomly
-# 3. Remove punctuation
-# 4. Select words of length 3 to 15 letters (inclusive)
-# 5. Sort and remove duplicates
+# 2. Remove words containing non-letters, or with length not within 3-15
+#    letters (inclusive)
+# 3. Remove duplicates (sorting required for uniq)
+# 4. Shuffle randomly
+# 5. Sort from third letter onwards
 cat "$DIRTY_FILE" \
     | grep -oP '^[A-Za-z]{3,15}$' \
     | sort \
     | uniq \
-    | shuf > "$CLEAN_FILE"
+    | shuf \
+    | sort -b -k "1.3" > "$CLEAN_FILE"
