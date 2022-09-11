@@ -4,8 +4,6 @@
 
   Description:           TODO
   Author:                Michael De Pasquale
-  Creation Date:         2022-08-19
-  Modification Date:     2022-09-04
 
 */
 
@@ -40,6 +38,7 @@ int main(int argc, char **argv) {
 
     // Run Task1filter (filter/deduplicate/shuffle)
     wordList = Task1Filter(wordList);
+    printf("Loaded %li words after filtering\n", wordList.size());
 
     // Use map2 to separate by word length
     std::vector<pid_t> childPIDs = map2(wordList);
@@ -118,10 +117,15 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
 
         // Open corresponding file
         auto targetList = readWordList(getListFilename(sortLen, "tmp.task2"));
+        printf("Child sortLen=%i read word list, %li words\n", sortLen,
+               targetList.size());
 
-        // Define comparison function for sorting on third letter only
+        // Define comparison function for sorting on third letter onwards
         auto cmpLetter3 = [](const std::string &a, const std::string &b) {
-            return a[2] < b[2];
+            std::string aSub = a.substr(2, std::string::npos);
+            std::string bSub = b.substr(2, std::string::npos);
+
+            return aSub < bSub;
         };
 
         // Child process
@@ -149,12 +153,14 @@ void reduce2(std::string outPath) {
     std::vector<std::deque<std::string>> wordLists;
 
     // Load each of the word lists
-    for (int i = 3; i < 15; i++) {
+    for (int i = 3; i < 16; i++) {
         // Use deque for better performance since we need to repeatedly
         // remove the first element from each word list later.
         std::deque<std::string> curList;
         std::vector<std::string> curListVec =
             readWordList(getListFilename(i, "task2"));
+        printf("reduce2() read word list len=%i wordCount=%li\n", i,
+               curListVec.size());
         std::move(begin(curListVec), end(curListVec), back_inserter(curList));
 
         wordLists.push_back(curList);
@@ -180,8 +186,11 @@ void reduce2(std::string outPath) {
         }
 
         // Both lists non-empty
-        // Sort on the third letter of each word
-        return a[0][2] < b[0][2];
+        // Sort on the third letter of each word onwards
+        std::string aSub = a[0].substr(2, std::string::npos);
+        std::string bSub = b[0].substr(2, std::string::npos);
+
+        return aSub < bSub;
     };
 
     // Open output file
@@ -195,6 +204,11 @@ void reduce2(std::string outPath) {
         // If first ordered list is empty, then all others must be empty and we
         // are finished.
         if (wordLists[0].size() == 0) {
+            // Ensure we aren't breaking early
+            for (auto dq : wordLists) {
+                assert(dq.size() == 0);
+            }
+
             break;
         }
 

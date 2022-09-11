@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <chrono>
 
 #include "Utils.h"
 
@@ -45,6 +46,7 @@ int main(int argc, char** argv) {
 
     // Perform filtering/deduplication/shuffling
     lines = Task1Filter(lines);
+    printf("Loaded %li words after filtering\n", lines.size());
 
     // Initialise global array of words
     Global = lines;  // new std::string[lines.size()];
@@ -104,15 +106,22 @@ int map3ThreadCompare(const void* a, const void* b) {
     int aIdx = *(int*)a;
     int bIdx = *(int*)b;
 
-    // Get third letter of each word
-    char aLetter = Global[aIdx][2];
-    char bLetter = Global[bIdx][2];
+    std::string aSub = Global[aIdx].substr(2, std::string::npos);
+    std::string bSub = Global[bIdx].substr(2, std::string::npos);
 
-    // Return integer indicating sort order
-    return (int)aLetter - (int)bLetter;
+    if (aSub < bSub) {
+        // a first
+        return -1;
+    } else {
+        // strings are equal or b should be first.
+        return 1;
+    }
 }
 
 void* map3Thread(void* argPtr) {
+    // Record start time
+    auto threadStart = std::chrono::high_resolution_clock::now();
+
     MapThreadArgs* args = (MapThreadArgs*)argPtr;
 
     printf("Thread len=%u %u words\n", args->wordLength, args->wordCount);
@@ -151,6 +160,16 @@ void* map3Thread(void* argPtr) {
     close(outFile);
 
     printf("Thread len=%u closed file\n", args->wordLength);
+
+    // Record and print elapsed time
+    auto threadEnd = std::chrono::high_resolution_clock::now();
+    auto delta = threadEnd - threadStart;
+    double durationSec =
+        (double)(std::chrono::duration_cast<std::chrono::microseconds>(delta)
+                     .count()) /
+        (double)1e6;
+    printf("Thread len=%u wordCount=%u elapsed=%f\n", args->wordLength,
+           args->wordCount, durationSec);
 
     return 0;
 }
@@ -206,8 +225,17 @@ int reduce3Compare(const void* a, const void* b) {
         return -1;
     }
 
-    // Compare third letter from each word
-    return (int)aList->nextWord[2] - (int)bList->nextWord[2];
+    // Compare from third letter
+    std::string aSub =
+        std::string(aList->nextWord).substr(2, std::string::npos);
+    std::string bSub =
+        std::string(bList->nextWord).substr(2, std::string::npos);
+
+    if (aSub < bSub) {
+        return -1;
+    } else {
+        return 1;
+    }
 }
 
 void reduce3(std::string outPath, pthread_t* threads,

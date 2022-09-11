@@ -42,6 +42,7 @@ int main(int argc, char** argv) {
 
     // Read input word list
     std::vector<std::string> lines = readWordList(argv[1]);
+    printf("Loaded %li words after filtering\n", lines.size());
 
     // Perform filtering/deduplication/shuffling
     lines = Task1Filter(lines);
@@ -148,12 +149,16 @@ int map4ThreadCompare(const void* a, const void* b) {
     int aIdx = *(int*)a;
     int bIdx = *(int*)b;
 
-    // Get third letter of each word
-    char aLetter = Global[aIdx][2];
-    char bLetter = Global[bIdx][2];
+    std::string aSub = Global[aIdx].substr(2, std::string::npos);
+    std::string bSub = Global[bIdx].substr(2, std::string::npos);
 
-    // Return integer indicating sort order
-    return (int)aLetter - (int)bLetter;
+    if (aSub < bSub) {
+        // a first
+        return -1;
+    } else {
+        // strings are equal or b should be first.
+        return 1;
+    }
 }
 
 void* map4Thread(void* argPtr) {
@@ -250,8 +255,17 @@ int reduce4Compare(const void* a, const void* b) {
         return -1;
     }
 
-    // Compare third letter from each word
-    return (int)aList->nextWord[2] - (int)bList->nextWord[2];
+    // Compare from third letter
+    std::string aSub =
+        std::string(aList->nextWord).substr(2, std::string::npos);
+    std::string bSub =
+        std::string(bList->nextWord).substr(2, std::string::npos);
+
+    if (aSub < bSub) {
+        return -1;
+    } else {
+        return 1;
+    }
 }
 
 void reduce4(std::string outPath, pthread_t* threads,
