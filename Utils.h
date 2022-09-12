@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <time.h>
 #include <algorithm>
+#include <chrono>
 #include <deque>
 #include <fstream>
 #include <map>
@@ -20,6 +21,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+using namespace std::chrono;
 
 // Return a filename for a word list containing words of the specified length
 std::string getListFilename(int len);
@@ -58,5 +61,12 @@ std::vector<std::string> Task1Filter(std::vector<std::string> lines);
 // Assumes word lengths are between 3 and 15 characters inclusive.
 std::map<int, std::vector<std::string>> splitWordsByLength(
     std::vector<std::string> lines);
+
+// Record an accurate starting time to be passed to executionTimingEnd().
+time_point<high_resolution_clock> executionTimingStart();
+
+// Returns the elapsed time between timeStarted and the time at which this
+// function was called, in seconds.
+double executionTimingEnd(time_point<high_resolution_clock> timeStarted);
 
 #endif /* __UTILS_H__ */

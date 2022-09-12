@@ -174,4 +174,22 @@ std::map<int, std::vector<std::string>> splitWordsByLength(
     return wordLists;
 }
 
+// Record an accurate starting time to be passed to executionTimingEnd().
+time_point<high_resolution_clock> executionTimingStart() {
+    // Record start time
+    return high_resolution_clock::now();
+}
+
+// Returns the elapsed time between timeStarted and the time at which this
+// function was called, in seconds.
+double executionTimingEnd(time_point<high_resolution_clock> timeStarted) {
+    // Record end time
+    auto timeEnded = high_resolution_clock::now();
+
+    // Get elapsed time in microseconds and convert to seconds/double
+    return (double)(duration_cast<microseconds>(timeEnded - timeStarted)
+                        .count()) /
+           (double)1e6;
+}
+
 /* vim: set ts=4 sw=4 tw=79 fdm=indent ff=unix fenc=utf-8 et :*/
