@@ -162,6 +162,9 @@ int map4ThreadCompare(const void* a, const void* b) {
 }
 
 void* map4Thread(void* argPtr) {
+    // Record start time
+    auto threadStart = executionTimingStart();
+
     MapThreadArgs* args = (MapThreadArgs*)argPtr;
 
     printf("Thread len=%u %u words\n", args->wordLength, args->wordCount);
@@ -176,6 +179,10 @@ void* map4Thread(void* argPtr) {
     // This will block until the corresponding open() call in reduce4().
     int outFile = open(getListFilename(args->wordLength, "task4").c_str(),
                        O_WRONLY /* Write */);
+
+    // Raise named pipe buffer size to reduce the chance of blocking on
+    // write.
+    fcntl(outFile, F_SETPIPE_SZ, 1048576 /* /proc/sys/fs/pipe-max-size */);
 
     printf("Thread len=%u opened pipe\n", args->wordLength);
 
@@ -200,6 +207,10 @@ void* map4Thread(void* argPtr) {
     close(outFile);
 
     printf("Thread len=%u closed file\n", args->wordLength);
+
+    // Print elapsed time
+    printf("Thread len=%u wordCount=%u elapsed=%f\n", args->wordLength,
+           args->wordCount, executionTimingEnd(threadStart));
 
     return 0;
 }
@@ -270,6 +281,9 @@ int reduce4Compare(const void* a, const void* b) {
 
 void reduce4(std::string outPath, pthread_t* threads,
              MapThreadArgs* threadArgs) {
+    // Record start time
+    auto start = executionTimingStart();
+
     printf("reduce4()\n");
 
     // Open named pipes for reading. Note each map4() thread will block until
@@ -338,5 +352,5 @@ void reduce4(std::string outPath, pthread_t* threads,
         close(pipes[i]);
     }
 
-    printf("reduce4() finished\n");
+    printf("reduce4() finished, took %f sec\n", executionTimingEnd(start));
 }

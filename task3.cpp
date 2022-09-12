@@ -120,7 +120,7 @@ int map3ThreadCompare(const void* a, const void* b) {
 
 void* map3Thread(void* argPtr) {
     // Record start time
-    auto threadStart = std::chrono::high_resolution_clock::now();
+    auto threadStart = executionTimingStart();
 
     MapThreadArgs* args = (MapThreadArgs*)argPtr;
 
@@ -136,6 +136,10 @@ void* map3Thread(void* argPtr) {
     // This will block until the corresponding open() call in reduce3().
     int outFile = open(getListFilename(args->wordLength, "task3").c_str(),
                        O_WRONLY /* Write */);
+
+    // Raise named pipe buffer size to reduce the chance of blocking on
+    // write.
+    fcntl(outFile, F_SETPIPE_SZ, 1048576 /* /proc/sys/fs/pipe-max-size */);
 
     printf("Thread len=%u opened pipe\n", args->wordLength);
 
@@ -161,15 +165,9 @@ void* map3Thread(void* argPtr) {
 
     printf("Thread len=%u closed file\n", args->wordLength);
 
-    // Record and print elapsed time
-    auto threadEnd = std::chrono::high_resolution_clock::now();
-    auto delta = threadEnd - threadStart;
-    double durationSec =
-        (double)(std::chrono::duration_cast<std::chrono::microseconds>(delta)
-                     .count()) /
-        (double)1e6;
+    // Print elapsed time
     printf("Thread len=%u wordCount=%u elapsed=%f\n", args->wordLength,
-           args->wordCount, durationSec);
+           args->wordCount, executionTimingEnd(threadStart));
 
     return 0;
 }
@@ -240,6 +238,9 @@ int reduce3Compare(const void* a, const void* b) {
 
 void reduce3(std::string outPath, pthread_t* threads,
              MapThreadArgs* threadArgs) {
+    // Record start time
+    auto start = executionTimingStart();
+
     printf("reduce3()\n");
 
     // Open named pipes for reading. Note each map3() thread will block until
@@ -308,5 +309,5 @@ void reduce3(std::string outPath, pthread_t* threads,
         close(pipes[i]);
     }
 
-    printf("reduce3() finished\n");
+    printf("reduce3() finished, took %f sec\n", executionTimingEnd(start));
 }

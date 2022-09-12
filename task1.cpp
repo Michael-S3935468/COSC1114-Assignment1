@@ -20,8 +20,13 @@ int main(int argc, char** argv) {
     // Read input word list
     std::vector<std::string> lines = readWordList(argv[1]);
 
+    // Record start time
+    auto start = executionTimingStart();
+
     // Perform filtering/deduplication/shuffling
     lines = Task1Filter(lines);
+
+    printf("Task1Filter took %f sec\n", executionTimingEnd(start));
 
     // Write to output file
     writeWordList(argv[2], lines);

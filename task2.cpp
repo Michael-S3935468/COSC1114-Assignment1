@@ -111,6 +111,9 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
         }
     }
 
+    // Record start time
+    auto childStart = executionTimingStart();
+
     if (childPIDs.size() == 0) {
         // Child process
         printf("Child sortLen=%i reading word list\n", sortLen);
@@ -141,11 +144,19 @@ std::vector<pid_t> map2(std::vector<std::string> list) {
         printf("Child sortLen=%i finished writing word list\n", sortLen);
     }
 
+    // Display time for child process
+    printf("Child sortLen=%i took %f sec\n", sortLen,
+           executionTimingEnd(childStart));
+
     // Return child PIDs so we can wait for them to terminate
+    // This list will be empty for all child processes
     return childPIDs;
 }
 
 void reduce2(std::string outPath) {
+    // Record start time
+    auto start = executionTimingStart();
+
     printf("reduce2()\n");
 
     // 1. Open all lists from map2()
@@ -216,6 +227,8 @@ void reduce2(std::string outPath) {
         outStream << wordLists[0][0] << "\n";
         wordLists[0].pop_front();
     }
+
+    printf("reduce2() took %f sec\n", executionTimingEnd(start));
 }
 
 /* vim: set ts=4 sw=4 tw=79 fdm=indent ff=unix fenc=utf-8 et :*/
